@@ -7,15 +7,15 @@ It orchestrates the 6 specialized agents and builds consensus.
 
 from typing import Dict, Any, Optional
 import time
+import asyncio
 from datetime import datetime
 
-from app.agents.linkedin_agent import LinkedInAgent
-from app.agents.github_agent import GitHubAgent
-from app.agents.resume_agent import ResumeAgent
+from app.agents.linkedin_agent import LinkedInSourcingAgent
+from app.agents.github_agent import GitHubSourcingAgent
+from app.agents.resume_agent import ResumeAnalysisAgent
 from app.agents.bias_detection_agent import BiasDetectionAgent
 from app.agents.predictive_agent import PredictiveAgent
 from app.agents.consensus import ConsensusBuilder
-from app.agents.base_agent import AgentVote
 
 
 class SwarmOrchestrator:
@@ -32,9 +32,12 @@ class SwarmOrchestrator:
 
     def __init__(self):
         # Initialize all agents
-        self.linkedin_agent = LinkedInAgent()
-        self.github_agent = GitHubAgent()
-        self.resume_agent = ResumeAgent()
+        # Fast-tier agents (Haiku 4.5 with escalation to Sonnet 4.5)
+        self.linkedin_agent = LinkedInSourcingAgent()
+        self.github_agent = GitHubSourcingAgent()
+        self.resume_agent = ResumeAnalysisAgent()
+
+        # Premium-tier agents (Sonnet 4.5 only)
         self.bias_agent = BiasDetectionAgent()
         self.predictive_agent = PredictiveAgent()
 
@@ -64,23 +67,25 @@ class SwarmOrchestrator:
         """
         start_time = time.time()
 
-        # Step 1: Run initial agents in parallel
-        # TODO: Actually run these in parallel using asyncio.gather()
-        linkedin_vote = await self.linkedin_agent.evaluate(
-            candidate_id, resume_url, linkedin_url, github_url, job_opening_id
-        )
+        # Step 1: Run fast-tier agents in parallel (Haiku 4.5 with auto-escalation)
+        fast_agents_tasks = [
+            self.linkedin_agent.evaluate(
+                candidate_id, resume_url, linkedin_url, github_url, job_opening_id
+            ),
+            self.github_agent.evaluate(
+                candidate_id, resume_url, linkedin_url, github_url, job_opening_id
+            ),
+            self.resume_agent.evaluate(
+                candidate_id, resume_url, linkedin_url, github_url, job_opening_id
+            ),
+            self.predictive_agent.evaluate(
+                candidate_id, resume_url, linkedin_url, github_url, job_opening_id
+            ),
+        ]
 
-        github_vote = await self.github_agent.evaluate(
-            candidate_id, resume_url, linkedin_url, github_url, job_opening_id
-        )
-
-        resume_vote = await self.resume_agent.evaluate(
-            candidate_id, resume_url, linkedin_url, github_url, job_opening_id
-        )
-
-        predictive_vote = await self.predictive_agent.evaluate(
-            candidate_id, resume_url, linkedin_url, github_url, job_opening_id
-        )
+        # Execute fast agents concurrently
+        fast_results = await asyncio.gather(*fast_agents_tasks)
+        linkedin_vote, github_vote, resume_vote, predictive_vote = fast_results
 
         # Step 2: Bias detection agent reviews other agents' votes
         other_votes = {
@@ -110,26 +115,60 @@ class SwarmOrchestrator:
 
         consensus = self.consensus_builder.build_consensus(all_votes)
 
-        # Step 4: Compile result
+        # Step 4: Track metrics
         processing_time_ms = (time.time() - start_time) * 1000
+
+        # Track total tokens and cost across all agents
+        total_input_tokens = 0
+        total_output_tokens = 0
+        total_cost = 0.0
+
+        # Extract from each agent response
+        for vote in [linkedin_vote, github_vote, resume_vote, predictive_vote, bias_vote]:
+            if isinstance(vote, dict) and "token_usage" in vote:
+                total_input_tokens += vote["token_usage"].get("input", 0)
+                total_output_tokens += vote["token_usage"].get("output", 0)
+            # Cost is tracked within each agent's metrics
+
+        # Step 5: Compile result
+
+        # Helper function to normalize vote format (all agents now return dicts)
+        def normalize_vote(vote):
+            return {
+                "score": vote.get("score", 0),
+                "confidence": vote.get("confidence", 0),
+                "reasoning": vote.get("reasoning", ""),
+                "metadata": vote.get("metadata", {}),
+            }
 
         result = {
             "candidate_id": candidate_id,
             "job_opening_id": job_opening_id,
             "agent_votes": {
-                name: {
-                    "score": vote.score,
-                    "confidence": vote.confidence,
-                    "reasoning": vote.reasoning,
-                    "metadata": vote.metadata,
-                }
+                name: normalize_vote(vote)
                 for name, vote in all_votes.items()
             },
             "consensus_details": consensus,
             "overall_confidence": consensus["overall_score"],
-            "bias_flags": bias_vote.metadata.get("bias_flags", []),
+            "bias_flags": (
+                bias_vote.get("metadata", {}).get("bias_flags", [])
+                if isinstance(bias_vote, dict)
+                else bias_vote.metadata.get("bias_flags", [])
+            ),
             "evaluated_at": datetime.utcnow(),
             "processing_time_ms": round(processing_time_ms, 2),
+            "metrics": {
+                "total_input_tokens": total_input_tokens,
+                "total_output_tokens": total_output_tokens,
+                "total_tokens": total_input_tokens + total_output_tokens,
+                "processing_time_ms": round(processing_time_ms, 2),
+                "agents_executed": 5,
+                "agents_parallel": 4,  # 4 fast-tier agents run in parallel
+                "escalations": sum(
+                    1 for vote in all_votes.values()
+                    if isinstance(vote, dict) and vote.get("escalated", False)
+                ),
+            },
         }
 
         return result
@@ -151,4 +190,14 @@ class SwarmOrchestrator:
             "total_evaluations": 0,
             "average_confidence": 0.0,
             "bias_flags_detected": 0,
+        }
+
+    def get_detailed_metrics(self) -> Dict[str, Any]:
+        """Get detailed metrics from all agents"""
+        return {
+            "linkedin": self.linkedin_agent.get_metrics(),
+            "github": self.github_agent.get_metrics(),
+            "resume": self.resume_agent.get_metrics(),
+            "bias_detection": self.bias_agent.get_metrics(),
+            "predictive": self.predictive_agent.get_metrics(),
         }

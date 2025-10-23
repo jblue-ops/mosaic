@@ -8,7 +8,7 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime
 import os
 
-# from app.agents.orchestrator import SwarmOrchestrator
+from app.agents.orchestrator import SwarmOrchestrator
 
 router = APIRouter()
 
@@ -45,6 +45,9 @@ class EvaluationResponse(BaseModel):
     )
     evaluated_at: datetime
     processing_time_ms: float
+    metrics: Dict[str, Any] = Field(
+        default_factory=dict, description="Execution metrics (tokens, cost, escalations)"
+    )
 
 
 @router.post("/evaluate", response_model=EvaluationResponse)
@@ -78,65 +81,26 @@ async def evaluate_candidate(
     elif os.getenv("ENV") != "development":
         raise HTTPException(status_code=401, detail="Missing authorization header")
 
-    # TODO: Implement actual swarm orchestration
-    # orchestrator = SwarmOrchestrator()
-    # result = await orchestrator.evaluate_candidate(
-    #     candidate_id=request.candidate_id,
-    #     resume_url=request.resume_url,
-    #     linkedin_url=request.linkedin_url,
-    #     github_url=request.github_url,
-    #     job_opening_id=request.job_opening_id
-    # )
+    # Initialize orchestrator and run swarm evaluation
+    orchestrator = SwarmOrchestrator()
 
-    # Mock response for now
-    mock_response = {
-        "candidate_id": request.candidate_id,
-        "job_opening_id": request.job_opening_id,
-        "agent_votes": {
-            "linkedin_agent": {
-                "score": 0.85,
-                "confidence": 0.9,
-                "reasoning": "Strong professional experience matching requirements",
-            },
-            "github_agent": {
-                "score": 0.75,
-                "confidence": 0.8,
-                "reasoning": "Active contributor with relevant projects",
-            },
-            "resume_agent": {
-                "score": 0.88,
-                "confidence": 0.95,
-                "reasoning": "Well-structured resume with relevant skills",
-            },
-            "bias_detection_agent": {
-                "score": 0.92,
-                "confidence": 1.0,
-                "reasoning": "No bias flags detected, EEOC compliant",
-            },
-            "predictive_agent": {
-                "score": 0.82,
-                "confidence": 0.85,
-                "reasoning": "High probability of success based on historical data",
-            },
-            "consensus_agent": {
-                "score": 0.84,
-                "confidence": 0.88,
-                "reasoning": "Strong consensus across all agents",
-            },
-        },
-        "consensus_details": {
-            "voting_mechanism": "weighted_average",
-            "agreement_score": 0.88,
-            "agents_in_consensus": 6,
-            "agents_total": 6,
-        },
-        "overall_confidence": 0.84,
-        "bias_flags": [],
-        "evaluated_at": datetime.utcnow(),
-        "processing_time_ms": 1250.5,
-    }
+    try:
+        result = await orchestrator.evaluate_candidate(
+            candidate_id=request.candidate_id,
+            resume_url=request.resume_url,
+            linkedin_url=request.linkedin_url,
+            github_url=request.github_url,
+            job_opening_id=request.job_opening_id
+        )
 
-    return EvaluationResponse(**mock_response)
+        return EvaluationResponse(**result)
+
+    except Exception as e:
+        # Log error and return meaningful response
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error evaluating candidate: {str(e)}"
+        )
 
 
 @router.get("/evaluations/{candidate_id}")
@@ -155,4 +119,41 @@ async def get_candidate_evaluations(candidate_id: int):
         "candidate_id": candidate_id,
         "evaluations": [],
         "total_count": 0,
+    }
+
+
+@router.get("/metrics")
+async def get_agent_metrics(
+    authorization: Optional[str] = Header(None)
+):
+    """
+    Get detailed agent performance metrics
+
+    Returns metrics for all agents including:
+    - Total requests processed
+    - Escalation rates
+    - Token usage
+    - Cost tracking
+    """
+    # Verify API key
+    if authorization:
+        token = authorization.replace("Bearer ", "")
+        if token != RAILS_API_KEY:
+            raise HTTPException(status_code=401, detail="Invalid API key")
+
+    orchestrator = SwarmOrchestrator()
+    return orchestrator.get_detailed_metrics()
+
+
+@router.get("/agents/status")
+async def get_agents_status():
+    """
+    Get status of all agents
+
+    Returns health check status for each agent in the swarm
+    """
+    orchestrator = SwarmOrchestrator()
+    return {
+        "agents": orchestrator.get_agent_status(),
+        "status": "operational"
     }
