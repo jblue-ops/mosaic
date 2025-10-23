@@ -1,0 +1,145 @@
+# Mosaic Monorepo - Comprehensive .gitignore
+# Covers Rails (HoneyBee), Python (AI Service), and shared resources
+
+# ===== ENVIRONMENT & SECRETS =====
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+
+# ===== RAILS (HoneyBee) =====
+# Dependencies
+honeybee/vendor/bundle/
+honeybee/.bundle/
+
+# Logs and temporary files
+honeybee/log/*
+honeybee/tmp/*
+honeybee/storage/*
+!honeybee/log/.keep
+!honeybee/tmp/.keep
+!honeybee/tmp/pids/.keep
+!honeybee/storage/.keep
+
+# Database
+honeybee/*.sqlite3
+honeybee/*.sqlite3-*
+honeybee/db/*.sqlite3
+
+# Ignore master key for decrypting credentials and more
+honeybee/config/master.key
+honeybee/config/credentials/*.key
+
+# Assets
+honeybee/public/assets/
+honeybee/public/packs/
+honeybee/public/packs-test/
+honeybee/node_modules/
+honeybee/yarn-error.log
+
+# Tailwind CSS
+honeybee/app/assets/builds/*
+
+# Solid Queue
+honeybee/tmp/queue/
+
+# ===== PYTHON (AI Service) =====
+# Byte-compiled / optimized / DLL files
+python-ai-service/__pycache__/
+python-ai-service/**/__pycache__/
+python-ai-service/*.py[cod]
+python-ai-service/*$py.class
+python-ai-service/**/*.py[cod]
+
+# Virtual environments
+python-ai-service/venv/
+python-ai-service/env/
+python-ai-service/.venv/
+python-ai-service/.env/
+python-ai-service/ENV/
+
+# Distribution / packaging
+python-ai-service/*.egg-info/
+python-ai-service/dist/
+python-ai-service/build/
+
+# Testing
+python-ai-service/.pytest_cache/
+python-ai-service/.coverage
+python-ai-service/htmlcov/
+python-ai-service/.tox/
+
+# MyPy
+python-ai-service/.mypy_cache/
+python-ai-service/.dmypy.json
+python-ai-service/dmypy.json
+
+# Logs
+python-ai-service/logs/*.log
+!python-ai-service/logs/.keep
+
+# ===== IDE & EDITORS =====
+# VSCode
+.vscode/
+*.code-workspace
+
+# JetBrains (RubyMine, PyCharm, etc.)
+.idea/
+*.iml
+*.iws
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# ===== OS FILES =====
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+# ===== DOCKER =====
+*.dockerfile.local
+
+# ===== BACKUP FILES =====
+*.backup
+*.bak
+*.bundle
+*.orig
+
+# ===== DOCUMENTATION BUILD =====
+docs/_build/
+docs/.doctrees/
+
+# ===== MISC =====
+# Local notes
+NOTES.md
+TODO.md
+*.local
+
+# Coverage reports
+coverage/
+
+# Claude Code local settings (keep project settings)
+.claude/settings.local.json

@@ -1,0 +1,19 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  person: one
+  person_type: Person
+  skill: one
+  proficiency: 1
+  verified_by: MyString
+  evidence: 
+  confidence_score: 9.99
+
+two:
+  person: two
+  person_type: Person
+  skill: two
+  proficiency: 1
+  verified_by: MyString
+  evidence: 
+  confidence_score: 9.99

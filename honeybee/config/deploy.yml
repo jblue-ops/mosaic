@@ -1,0 +1,143 @@
+# HoneyBee + Python AI Service - Kamal 2 Deployment Configuration
+# Deploy with: kamal deploy
+
+# Main Rails application
+service: honeybee
+image: your-registry/honeybee
+
+# Deploy to these servers
+servers:
+  web:
+    hosts:
+      - 192.168.0.1  # Change to your production server IP
+    labels:
+      traefik.http.routers.honeybee.rule: Host(`app.honeybee.com`)
+    options:
+      network: "private"
+
+  # Solid Queue worker (optional separate server for high volume)
+  # worker:
+  #   hosts:
+  #     - 192.168.0.2
+  #   cmd: bin/jobs
+
+  # Python AI service
+  ai_service:
+    image: your-registry/honeybee-ai
+    hosts:
+      - 192.168.0.1  # Can be on same or different server
+    cmd: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    labels:
+      traefik.http.routers.ai.rule: Host(`ai.honeybee.com`)
+    options:
+      network: "private"
+
+# SSL configuration
+proxy:
+  ssl: true
+  host: app.honeybee.com
+
+# Docker registry credentials
+registry:
+  username: your-username
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+# Environment variables
+env:
+  secret:
+    - RAILS_MASTER_KEY
+    - DATABASE_URL
+    - AI_SERVICE_API_KEY
+    - OPENAI_API_KEY
+    - SENTRY_DSN
+  clear:
+    # Run Solid Queue in Puma for single-server setup
+    SOLID_QUEUE_IN_PUMA: true
+
+    # Python AI Service URL (internal network)
+    AI_SERVICE_URL: http://ai_service:8000
+
+    # Rails environment
+    RAILS_ENV: production
+    RAILS_LOG_LEVEL: info
+    RAILS_SERVE_STATIC_FILES: true
+    RAILS_LOG_TO_STDOUT: true
+
+# Accessories (PostgreSQL database)
+accessories:
+  db:
+    image: postgres:16-alpine
+    host: 192.168.0.3  # Dedicated database server
+    port: "127.0.0.1:5432:5432"
+    env:
+      clear:
+        POSTGRES_DB: honeybee_production
+      secret:
+        - POSTGRES_PASSWORD
+    directories:
+      - data:/var/lib/postgresql/data
+    options:
+      network: "private"
+
+# Persistent storage
+volumes:
+  - "honeybee_storage:/rails/storage"
+
+# Asset path for fingerprinted assets
+asset_path: /rails/public/assets
+
+# Builder configuration
+builder:
+  arch: amd64
+  multiarch: false
+  args:
+    RUBY_VERSION: 3.3.0
+  secrets:
+    - RAILS_MASTER_KEY
+
+# Healthchecks
+healthcheck:
+  path: /up
+  port: 3000
+  max_attempts: 7
+  interval: 10s
+
+# Aliases for common tasks
+aliases:
+  console: app exec --interactive --reuse "bin/rails console"
+  shell: app exec --interactive --reuse "bash"
+  logs: app logs -f
+  dbc: app exec --interactive --reuse "bin/rails dbconsole"
+  ai-logs: ai_service logs -f
+  ai-shell: ai_service exec --interactive --reuse "bash"
+
+# Backup configuration (optional)
+# backup:
+#   schedule: "0 2 * * *"  # 2 AM daily
+#   keep: 7  # Keep 7 days of backups
+
+# Notes for deployment:
+#
+# 1. First time setup:
+#    kamal setup
+#
+# 2. Deploy updates:
+#    kamal deploy
+#
+# 3. Environment variables:
+#    Create .kamal/secrets with required secrets:
+#    KAMAL_REGISTRY_PASSWORD=...
+#    RAILS_MASTER_KEY=...
+#    DATABASE_URL=postgresql://...
+#    AI_SERVICE_API_KEY=...
+#    OPENAI_API_KEY=...
+#    POSTGRES_PASSWORD=...
+#
+# 4. Build separate Python image:
+#    cd ../python-ai-service
+#    docker build -t your-registry/honeybee-ai .
+#    docker push your-registry/honeybee-ai
+#
+# 5. Deploy both services:
+#    kamal deploy

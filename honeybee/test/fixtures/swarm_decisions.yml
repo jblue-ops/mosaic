@@ -1,0 +1,21 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  candidate: one
+  job_opening: one
+  decision_type: MyString
+  agent_votes: 
+  consensus_details: 
+  overall_confidence: 9.99
+  bias_flags: 
+  evaluated_at: 2025-10-22 17:34:55
+
+two:
+  candidate: two
+  job_opening: two
+  decision_type: MyString
+  agent_votes: 
+  consensus_details: 
+  overall_confidence: 9.99
+  bias_flags: 
+  evaluated_at: 2025-10-22 17:34:55

@@ -1,0 +1,35 @@
+# Overcommit Git hooks configuration
+# Install hooks: overcommit --install
+# Update hooks: overcommit --sign
+
+PreCommit:
+  RuboCop:
+    enabled: true
+    on_warn: fail
+    command: ['bundle', 'exec', 'rubocop']
+
+  BundleAudit:
+    enabled: true
+    description: 'Check for vulnerable gem versions'
+    command: ['bundle', 'exec', 'bundle-audit', 'check', '--update']
+
+  Brakeman:
+    enabled: true
+    description: 'Check for security vulnerabilities'
+    command: ['bundle', 'exec', 'brakeman', '--quiet', '--no-pager']
+
+  TrailingWhitespace:
+    enabled: true
+    exclude:
+      - '**/db/structure.sql'
+
+CommitMsg:
+  CapitalizedSubject:
+    enabled: true
+    description: 'Check subject begins with capital letter'
+
+  TextWidth:
+    enabled: true
+    description: 'Check commit message line width'
+    max_subject_width: 72
+    max_body_width: 80
